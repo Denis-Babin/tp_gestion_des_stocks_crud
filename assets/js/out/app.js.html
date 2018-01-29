@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: app.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: app.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/** @namespace */
+const app = (function () {
+    "use strict";
+
+
+    /**
+     * variable global for products
+     * @alias app.productName
+     * @alias app.productPrice
+     * @alias app.productColor
+     * @alias app.productDiscription
+     * @alias app.addProd
+     * @alias app.send
+     * @alias app.formProduct
+     * @alias app.idsproducts
+     * @type {element}
+     */
+    let formProduct,
+        send,
+        idsproducts = [],
+        updateProductBtns,
+        activeProductId,
+        formStatus,
+        productName,
+        productPrice,
+        productColor,
+        productDiscription,
+        modal
+    ;
+
+
+    /**
+     * @function getData
+     * function to get data from array stock
+     * @alias app.getData
+     * @return {undefined}
+     */
+    const getData = function () {
+
+    };
+
+    /**
+     * @function addProduct
+     * function for add a new product in stock
+     * @param {event} evt
+     * @param {string} mode
+     * @alias app.addProduct
+     * @return {undefined} RAS
+     */
+    const addProduct = function (evt, mode) {
+        productName = document.getElementById("product_name").value;
+        productPrice = document.getElementById("product_price").value;
+        productColor = document.getElementById("product_color").value;
+        productDiscription = document.getElementById("product_discription").value;
+
+            evt.preventDefault();
+            const fd = new FormData();
+            const xhr = new XMLHttpRequest();
+
+            if (mode === "update") {
+                fd.append("id_product", activeProductId);
+            }
+
+            fd.append("product_name", productName);
+            fd.append("product_price", productPrice);
+            fd.append("product_color", productColor);
+            fd.append("product_discription", productDiscription);
+            fd.append("action", mode + "_product");
+
+            xhr.open("POST", "ajax.php");
+
+            xhr.onload = function getServerResponse() {
+                if (mode === "create") {
+                    let id = Number(this.response);
+                    addProductInDOMList(id, {
+                        productName: productName,
+                        productPrice: productPrice,
+                        productColor: productColor,
+                        productDiscription: productDiscription
+                    });
+                } else {
+                    updateProductInDOMList(productName, productPrice, productColor, productDiscription);
+                }
+                resetForm();
+            };
+            xhr.send(fd);
+    };
+
+    /** @function resetForm
+     * Réinitialise les champs du formulaire
+     * @alias app.restForm
+     * @returns {undefined} RAS
+     */
+    function resetForm() {
+        productName = document.getElementById("product_name").value = "";
+        productPrice = document.getElementById("product_price").value = "";
+        productColor = document.getElementById("product_color").value = "";
+        productDiscription = document.getElementById("product_discription").value = "";
+
+        modal.classList.remove("is-active");
+    }
+
+    /**
+     * @function deleteProduct
+     * function for delete an product in stock and display table
+     * @alias app.deleteProduct
+     * @return {undefined} RAS
+     */
+    const deleteProduct = function () {
+        const checked = document.querySelectorAll(".delete input:checked");
+
+        if (checked.length) {
+            let fd = new FormData();
+            let xhr = new XMLHttpRequest();
+
+            checked.forEach(function (c) {
+                let product = c.parentElement.parentElement;
+                let idProduct = Number(product.getAttribute("data-id-product"));
+                idsproducts.push(idProduct);
+            });
+
+            fd.append("action", "delete_product");
+
+            fd.append("ids", JSON.stringify(idsproducts));
+
+            xhr.open("POST", "ajax.php");
+
+            xhr.onload = function getServerResponse() {
+                removeProductsFromDOMList();
+            };
+            xhr.send(fd);
+        }
+    };
+
+    /** @function removeProductsFromDOMList
+     * Supprime les lignes du tableur contenant des checkbox cochés
+     * @alias app.removeProductsFromDOMList
+     * @returns {number} la tailles de lignes du tableur restantes
+     */
+    function removeProductsFromDOMList() {
+        const checkBoxes = document.querySelectorAll(".delete input:checked");
+        checkBoxes.forEach(function parse(checkbox) {
+            checkbox.parentElement.parentElement.remove();
+        });
+        return document.querySelectorAll("tbody tr").length;
+    }
+
+    /**
+     * @function editProduct
+     * modifier le produit selectinner
+     * @alias app.editProduct
+     * @param evt
+     * @return {undefined} RAS
+     */
+    const editProduct = function (evt) {
+        const src = evt.target || evt.srcElement;
+        const parent = src.parentElement.parentElement;
+        const fd = new FormData();
+        const xhr = new XMLHttpRequest();
+
+        evt.preventDefault();
+
+        activeProductId = Number(parent.getAttribute("data-id-product"));
+
+        fd.append("id_product", activeProductId);
+        fd.append("action", "get_product");
+
+        xhr.open("POST", "ajax.php");
+
+        xhr.onload = function getBillFromServer() {
+            let productToEdit = JSON.parse(this.response);
+            display(productToEdit);
+        };
+
+        xhr.send(fd);
+    };
+
+    /**
+     * @function addProductInDOMList
+     * ajouter produit dans le DOM
+     * @alias app.addProductInDOMList
+     * @param insertedId
+     * @param productData
+     * @return {Node}
+     */
+    const addProductInDOMList = function (insertedId, productData) {
+        let td;
+        const tr = document.createElement("tr");
+        tr.setAttribute("data-id-product", insertedId);
+        tr.classList.add("product");
+
+        td = document.createElement("td");
+        td.textContent = insertedId;
+        tr.appendChild(td);
+        td = document.createElement("td");
+        td.textContent = productData.productName;
+        tr.appendChild(td);
+        td = document.createElement("td");
+        td.textContent = productData.productPrice + " €";
+        tr.appendChild(td);
+        td = document.createElement("td");
+        td.textContent = productData.productColor;
+        tr.appendChild(td);
+        td = document.createElement("td");
+        td.textContent = productData.productDiscription;
+        tr.appendChild(td);
+        td = document.createElement("td");
+        td.className = "update";
+        td.innerHTML = "&lt;span class='update-btn'>edit&lt;/span>";
+        td.querySelector(".tabler-btn").onclick = editProduct();
+        tr.appendChild(td);
+        td = document.createElement("td");
+        td.className = "delete";
+        td.innerHTML = "&lt;input type='checkbox'>";
+        tr.appendChild(td);
+
+        return document.getElementById("Product_list").appendChild(tr);
+    };
+
+    /**
+     * @function updateProductInDOMList
+     * modifier le produit dans le DOM
+     * @param productName
+     * @param productPrice
+     * @param productColor
+     * @param productDiscription
+     * @return {undefined} RAS
+     */
+    const updateProductInDOMList = function (productName, productPrice, productColor, productDiscription) {
+        let td;
+        const tr = document.querySelector(`[data-id-product="${activeProductId}"]`);
+        if (tr){
+
+            td = tr.querySelector("td:nth-child(2)");
+            td.textContent = productName;
+
+            td = tr.querySelector("td:nth-child(3)");
+            td.textContent = productPrice;
+
+            td = tr.querySelector("td:nth-child(4)");
+            td.textContent = productColor;
+
+            td = tr.querySelector("td:nth-child(5)");
+            td.textContent = productDiscription;
+        }
+    };
+
+    /**
+     * @function display
+     * afficher le fromulaire
+     * @param productToEdit
+     * @alias app.display
+     * @return {undefined} RAS
+     */
+    const display = function (productToEdit) {
+        const titre = document.querySelector(".modal-content h2");
+
+            titre.textContent = "Modifier un Produit";
+            send.value = "Modifier";
+            modal.classList.add("is-active");
+
+            if (productToEdit) {
+                formStatus = "update";
+                productName = document.getElementById("product_name");
+                productPrice = document.getElementById("product_price");
+                productColor = document.getElementById("product_color");
+                productDiscription = document.getElementById("product_discription");
+
+                productName.value = productToEdit.nom;
+                productPrice.value = productToEdit.prix;
+                productColor.value = productToEdit.couleur;
+                productDiscription.value = productToEdit.description;
+            } else {
+                formStatus = "create";
+                titre.textContent = "Ajouter un Produit";
+                send.value = "Ajouter";
+            }
+    };
+
+    /**
+     * @function init
+     * a executer au chargement du DOM
+     * @alias app.init
+     * @return {undefined} RAS
+     */
+    const init = function init() {
+        // DOM elements selection
+        const addProd = document.getElementById("show_prod");
+        formProduct = document.getElementById("form_product");
+        send = document.getElementById("send");
+        modal = document.querySelector(".modal-content");
+        updateProductBtns = document.querySelectorAll(".update-btn");
+        updateProductBtns.forEach(function (btn) {
+            btn.onclick = editProduct;
+        });
+        addProd.addEventListener("click", function (e) {
+            e.preventDefault();
+            modal.classList.add("is-active");
+        });
+
+        send.addEventListener("click", function (evt) {
+            display();
+            addProduct(evt, formStatus);
+        });
+
+        const deleteBtn = document.getElementById("delete_product");
+        if (deleteBtn) deleteBtn.onclick = deleteProduct;
+
+        const cross = document.querySelector(".cross");
+        cross.addEventListener("click", function () {
+           modal.classList.remove("is-active");
+           resetForm();
+        });
+    };
+
+
+    window.addEventListener("DOMContentLoaded", init);
+
+}());</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Namespaces</h3><ul><li><a href="app.html">app</a></li></ul><h3>Global</h3><ul><li><a href="global.html#addProductfunctionforaddanewproductinstock">addProduct
+function for add a new product in stock</a></li><li><a href="global.html#addProductInDOMListajouterproduitdansleDOM">addProductInDOMList
+ajouter produit dans le DOM</a></li><li><a href="global.html#deleteProductfunctionfordeleteanproductinstockanddisplaytable">deleteProduct
+function for delete an product in stock and display table</a></li><li><a href="global.html#displayafficherlefromulaire">display
+afficher le fromulaire</a></li><li><a href="global.html#editProductmodifierleproduitselectinner">editProduct
+modifier le produit selectinner</a></li><li><a href="global.html#getDatafunctiontogetdatafromarraystock">getData
+function to get data from array stock</a></li><li><a href="global.html#initaexecuterauchargementduDOM">init
+a executer au chargement du DOM</a></li><li><a href="global.html#removeProductsFromDOMListSupprimeleslignesdutableurcontenantdescheckboxcoch%25C3%25A9s">removeProductsFromDOMList
+Supprime les lignes du tableur contenant des checkbox cochés</a></li><li><a href="global.html#resetFormR%25C3%25A9initialiseleschampsduformulaire">resetForm
+Réinitialise les champs du formulaire</a></li><li><a href="global.html#updateProductInDOMListmodifierleproduitdansleDOM">updateProductInDOMList
+modifier le produit dans le DOM</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.5.5</a> on Thu Jan 11 2018 12:09:23 GMT+0100 (CET)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>
